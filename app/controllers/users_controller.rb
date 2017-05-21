@@ -18,7 +18,7 @@ class UsersController < ApplicationController
     @pending_requests = current_user.user_requests.pending
     (@filterrific = initialize_filterrific(
       Team, params[:filterrific],
-      select_options: { location: us_states, hs_college: Team.options_for_school_level }
+      select_options: { location: us_states, division: Team.options_for_school_level }
     )) || return
     @teams = @filterrific.find.page(params[:page])
 

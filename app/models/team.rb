@@ -21,7 +21,7 @@ class Team < ActiveRecord::Base
       filter_team_name
       filter_affiliation
       location
-      hs_college
+      division
     ]
   )
 
@@ -45,7 +45,7 @@ class Team < ActiveRecord::Base
   # passed in. The problem is filterrific expects an activerecord relation. In order to satisfy
   # this we get just the id's from the teams and then query for just those teams which returns
   # an activerecord relation.
-  scope :hs_college, lambda { |query|
+  scope :division, lambda { |query|
     appropriate_teams = select { |team| team if team.appropriate_division_level.eql? query }
     appropriate_teams.collect!(&:id)
     where(id: appropriate_teams)
@@ -56,11 +56,14 @@ class Team < ActiveRecord::Base
     5 - users.count
   end
 
-  def appropriate_division_level
-    return 'Unknown' if users.empty?
-    return 'Professional' if users.minimum('year_in_school').eql? 0
-    return 'High School' if users.maximum('year_in_school') <= 12
-    'College' # If user is not in any of the other three then fallback.
+  def appropriate_division_level?
+    # Make sure all the users years in school fall within the acceptable years in school
+    # for the division.
+    (users.collect(&:year_in_school) - division.acceptable_years_in_school).empty?
+  end
+
+  def team_competing_for_prizes?
+    users.collect(&:compete_for_prizes).uniq.eql? [true]
   end
 
   # If no slots are available then mark the team as full.
@@ -106,13 +109,31 @@ class Team < ActiveRecord::Base
     update_attributes(team_captain: users.find_by(id: user_id))
   end
 
+  # THIS WON'T WORK, MOVE THIS TO BEFORE or AFTER SAVE. It makes a lot of sense to cache this in the eligible
+  # field on the team instead of dynamically calculating it every time. Also make sure to figure
+  # our a way to make the compete_for_prizes and year_in_school updated fields trigger the team
+  # to re-save so that the eligible field is updated.
+
+  # The reason it won't work is because the large query that happens uses the eligible field to sort, because of
+  # that this field must be stored in the database.
+  # def eligible?
+  #   users.collect(&:compete_for_prizes).uniq.eql? [true] && appropriate_division_level?
+  # end
+
+  # Completely untested, might work...
+  def update_eligibility
+    update_attributes(eligible: team_competing_for_prizes? && appropriate_division_level?)
+  end
+
   # Uses the teams team_name but removes extra characters in order to make it easier
   # for the team to login.
+  # CAN PROBABLY BE REMOVED SINCE THIS WAS ONLY NECESSARY FOR OLD SCOREBOARD
   def scoreboard_login_name
     team_name.downcase.tr(' @$', '_as').gsub(/[^a-z0-9_]/, '')
   end
 
   # Group user states and then get the largest one.
+  # CAN PROBABLY BE REMOVED SINCE THIS WAS ONLY NECESSARY FOR OLD SCOREBOARD
   def common_team_location
     locations_array = users.map(&:state).group_by(&:itself).values.max_by(&:size)
     if !locations_array.nil?

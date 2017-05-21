@@ -46,9 +46,13 @@
       competing for prizes since one or more team members is not eligible to do so or has chosen to not compete for prizes in their profile. Please contact the users marked as ineligible above for more information.
   .span6
     %h4 Team Division Status
-    Your team is currently competing at the
-    %b=@team.appropriate_division_level
-    level since it is the highest common denominator between the team members you currently have signed up. Note that your division level will change based on the users you accept onto your team.
+    You have currently selected the
+    %b=@team.division.name
+    division for your team.
+    - if @team.appropriate_division_level?
+      This division is appropriate for your team.
+    - else
+      Your team is not eligible to compete at this level. Consider changing your division to match the division of the most senior member of your team or removing the member(s) causing your division to be incorrect.
 %hr
 .row
   .span12
