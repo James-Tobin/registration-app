@@ -15,7 +15,7 @@ user_one:
   confirmed_at: <%= Time.now %>
   team: team_one
 
-# User with every possible piece of information provided
+# User with every possible piece of information provided except team
 user_two:
   full_name: User two
   email: mitrectf+user2@gmail.com
@@ -42,7 +42,6 @@ user_three:
 user_four:
   full_name: User four
   email: mitrectf+user4@gmail.com
-  team: team_two
   affiliation: Industry
   year_in_school: 0
   state: FL
@@ -79,6 +78,7 @@ full_team_user_one:
   year_in_school: 9
   state: FL
   encrypted_password: <%= Devise::Encryptor.digest(User, 'TestPassword123') %>
+  current_sign_in_ip: 3.1.1.1
   confirmed_at: <%= Time.now %>
   team: full_team
 
@@ -131,3 +131,23 @@ user_on_team_with_special_chars:
   encrypted_password: <%= Devise::Encryptor.digest(User, 'TestPassword123') %>
   confirmed_at: <%= Time.now %>
   team: team_with_special_chars
+
+user_on_last_team:
+  full_name: Last Team
+  email: mitrectf+lastteam@gmail.com
+  affiliation: School
+  year_in_school: 10
+  state: FL
+  encrypted_password: <%= Devise::Encryptor.digest(User, 'TestPassword123') %>
+  confirmed_at: <%= Time.now %>
+  team: last_team
+
+user_for_top_ten:
+  full_name: Top Ten
+  email: mitrectftestuser@gmail.com
+  affiliation: Industry
+  year_in_school: 0
+  state: FL
+  encrypted_password: <%= Devise::Encryptor.digest(User, 'TestPassword123') %>
+  confirmed_at: <%= Time.now %>
+

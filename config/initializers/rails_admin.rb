@@ -10,18 +10,27 @@ RailsAdmin.config do |config|
   # config.main_app_name = Proc.new { |controller| [Rails.application.engine_name.titleize, controller.params['action'].titleize] }
 
   # RailsAdmin may need a way to know who the current user is]
-  config.current_user_method { current_user } # auto-generated
+  config.current_user_method(&:current_user) # auto-generated
 
-  config.authenticate_with do
-    warden.authenticate! scope: :admin
+  config.authorize_with do
+    redirect_to main_app.root_path unless current_user.try(:admin?)
   end
-  config.current_user_method(&:current_admin)
+
+  config.model 'Game' do
+    edit do
+      [:start, :stop].each do |f|
+        configure f do
+          help "Required - Must be in UTC. Current time is #{Time.now.utc}"
+        end
+      end
+    end
+  end
 
   # If you want to track changes on your models:
   # config.audit_with :history, 'User'
 
   # Or with a PaperTrail: (you need to install it first)
-  # config.audit_with :paper_trail, 'User'
+  config.audit_with :paper_trail, 'User', 'PaperTrail::Version'
 
   # Display empty fields in show views:
   # config.compact_show_view = false

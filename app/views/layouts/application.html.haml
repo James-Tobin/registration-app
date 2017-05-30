@@ -1,8 +1,9 @@
 !!!
 %html
   %head
-    %title MITRE Cyber Academy CTF Registration
+    %title= @game.name
     = stylesheet_link_tag    "application"
+    = javascript_include_tag "https://www.gstatic.com/charts/loader.js" if @page_requires_gcharts
     = javascript_include_tag "application"
     = csrf_meta_tags
   %body
@@ -13,16 +14,24 @@
             %span.icon-bar
             %span.icon-bar
             %span.icon-bar
-          %a.brand{:href => "/"} MITRE Cyber Academy
+          %a.brand{:href => "/"} MITRE CTF
           .nav-collapse.collapse
             %ul.nav
-              %li
-                %a{:href => home_about_path}
-                  %i.icon-info-sign.icon-white
-                  About
+              - if !@game.before_competition? || current_user&.admin?
+                %li{:class => "#{'active' if current_page? game_path}"}
+                  %a{:href => game_path} Gameboard
+              %li{:class => "#{'active' if current_page? game_messages_path}"}
+                %a{:href => game_messages_path}
+                  Messages
+                  - if !@unread_message_count&.eql? 0
+                    %span.badge.badge-important= @unread_message_count
+              - if !@game.before_competition? || current_user&.admin?
+                %li{:class => "#{'active' if current_page? game_achievements_path}"}
+                  %a{:href => game_achievements_path} Achievements
+                %li{:class => "#{'active' if current_page? game_summary_path}"}
+                  %a{:href => game_summary_path} Summary
               %li
                 %a{:href => "http://mitrecyberacademy.org/contact", :target => "_blank"}
-                  %i.icon-globe.icon-white
                   Contact
             %ul.nav.pull-right
               - if user_signed_in?
@@ -32,8 +41,20 @@
                     %b.caret
                   %ul.dropdown-menu
                     %li
-                      - if current_user.on_a_team?
+                      - if current_user.admin?
+                        = link_to "Admin", rails_admin_path
+                        %li.divider
+                        %li= link_to "Post a new Message", rails_admin.new_path("message")
+                        %li= link_to "View Submitted Flags", rails_admin.index_path("submitted_flag")
+                        %li= link_to "Award an Achievement", rails_admin.new_path("achievement")
+                        %li= link_to "New score adjustment", rails_admin.new_path("score_adjustment")
+                        - if content_for?(:admin_menu)
+                          %li.divider
+                          = yield :admin_menu
+                      - elsif current_user.on_a_team?
                         = link_to "See your team", team_path(current_user.team_id)
+                        - if current_user.team_captain?
+                          = link_to "Edit your team", edit_team_path(current_user.team_id)
                       - else
                         = link_to "Join a team", join_team_users_path
                         = link_to "Create a team", new_team_path
@@ -56,6 +77,11 @@
       .container
         %h1
           = yield :header
+          - if @game.open?
+            = render partial: "games/countdown", locals: {endTime: @game.stop}
+
+        %p
+          = yield :subheading
     .colored-divider
     .container
       - if !flash[:notice].blank?

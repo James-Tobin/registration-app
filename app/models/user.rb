@@ -3,12 +3,26 @@
 # User model, uses devise to manage registrations. Each user has a team reference which is
 # set to nil until they are added to a team.
 class User < ActiveRecord::Base
+  has_paper_trail
+
   belongs_to :team
+  has_many :feed_items
   has_many :user_invites
   has_many :user_requests
-  before_save :clear_compete_for_prizes
-  after_create :link_to_invitations
+  has_many :submitted_flags
   enum gender: %i[Male Female]
+
+  geocoded_by :current_sign_in_ip
+  after_validation :geocode, unless: :geocoded?
+
+  after_create :create_vpn_key_request
+
+  reverse_geocoded_by :latitude, :longitude do |obj, results|
+    if (geo = results.first)
+      obj.country = geo.country
+    end
+  end
+  after_validation :reverse_geocode, if: ->(obj) { obj.latitude_changed? || obj.longitude_changed? }
 
   # Include default devise modules. Others available are:
   # :token_authenticatable, :confirmable,
@@ -16,11 +30,17 @@ class User < ActiveRecord::Base
   devise :database_authenticatable, :registerable, :recoverable,
          :rememberable, :trackable, :confirmable, :secure_validatable
 
-  validates :full_name, :affiliation, presence: true, obscenity: true
-  validates :state, presence: true
-  validates :age, numericality: { greater_than_or_equal_to: 0, less_than: 200 }, allow_blank: true
-  validates :year_in_school, inclusion: { in: [0, 9, 10, 11, 12, 13, 14, 15, 16] }, presence: true
-  validates :gender, inclusion: { in: genders.keys }, allow_blank: true
+  # These are things we require user to have but do not require of admins.
+  with_options unless: :admin? do |user|
+    user.before_save :clear_compete_for_prizes
+    user.after_save :update_team_eligibility
+    user.after_create :link_to_invitations
+    user.validates :full_name, :affiliation, presence: true, obscenity: true
+    user.validates :state, presence: true
+    user.validates :age, numericality: { greater_than_or_equal_to: 0, less_than: 200 }, allow_blank: true
+    user.validates :year_in_school, inclusion: { in: [0, 9, 10, 11, 12, 13, 14, 15, 16] }, presence: true
+    user.validates :gender, inclusion: { in: genders.keys }, allow_blank: true
+  end
 
   # Returns whether a user is currently on a team or not.
   def on_a_team?
@@ -53,6 +73,19 @@ class User < ActiveRecord::Base
     (eql? user) || (team.team_captain.eql? self)
   end
 
+  def key_file_name
+    email.tr('^A-Za-z', '')[0..10] + id.to_s
+  end
+
+  def update_messages_stamp
+    update_attributes(messages_stamp: Time.now.utc)
+  end
+
+  def create_vpn_key_request
+    save_dir = '/opt/keys'
+    File.write("#{save_dir}/#{key_file_name}", '') if File.directory?(save_dir)
+  end
+
   private
 
   # If a user chooses to compete for prizes then they must be located in the US and be in school.
@@ -70,5 +103,11 @@ class User < ActiveRecord::Base
       invite.user = self
       invite.save
     end
+  end
+
+  # This happens after a user is saved in order to refresh the overall team eligibility based on
+  # the users choice.
+  def update_team_eligibility
+    team&.update_eligibility
   end
 end
